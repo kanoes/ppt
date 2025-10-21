@@ -1,300 +1,98 @@
+from __future__ import annotations
+
 import hashlib
 import re
-import os
-from typing import Literal
-
 from datetime import datetime
-from base64 import b64decode
-from io import BytesIO
+from typing import Any, Dict, Sequence
+
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
-from src.logging import get_logger
 from src.api.generate_schema import GenerateQuery
+from src.logging import get_logger
+from src.services.html_saver.html_save import save_html_to_local
+from src.services.presentation_pipeline import PresentationArtifacts, PresentationPipeline
+from src.services.ppt_saver.pres_save import save_ppt_to_local
 
-# ログ設定
 logger = get_logger("routes_generate")
-
-# FastAPIのルーター
 router = APIRouter()
+_pipeline = PresentationPipeline()
 
 
-@router.post("/generate-ppt")
-async def generate_ppt(query: GenerateQuery):
-    """
-    パワポを生成し保存するエンドポイント。
-    """
-    from src.services.ppt_saver.pres_save import save_ppt_to_local
-    from src.services.ppt_generator.pres_generator import ContentParser, PPTGenerator
-
+@router.post("/generate")
+async def generate_presentation(query: GenerateQuery):
     logger.info(
         {
-            "message": "パワポ生成リクエストを受信しました。",
+            "message": "プレゼンテーション生成リクエストを受信しました。",
             "user_name": query.userName,
-            "mode": "ppt",
             "status": "received",
         }
     )
 
-    assets = getattr(query, "assets", None)
-    indicator_charts_in = getattr(assets, "indicatorCharts", None) if assets else None
-    source_list = getattr(assets, "sourceList", None) if assets else None
-
-    decoded_charts = await decode_indicator_charts(indicator_charts_in)
-
-    max_retries = 2
-    ppt_file = None
-    last_err: Exception | None = None
-
-    for attempt in range(max_retries + 1):
+    assets_dict: Dict[str, Any] = {}
+    if getattr(query, "assets", None):
         try:
-            # conversation からタイトル/本文をまとめるのは ContentParser 側で実施
-            ppt_content = ContentParser().parse(
-                user_name=query.userName,
-                conversation=query.conversation,
-                decoded_charts=decoded_charts,
-                source_list=source_list,  # ← 新：引用元も渡す
-            )
-
-            ppt_generator = PPTGenerator(template_path="resources/smbc_template_new.pptx")
-            ppt_file = ppt_generator.generate(ppt_content)
-            break  # 成功
-
-        except Exception as e:
-            last_err = e
-            if attempt < max_retries:
-                logger.warning(
-                    {
-                        "message": "PPTの生成に失敗しました。再試行します。",
-                        "user_name": query.userName,
-                        "attempt": attempt + 1,
-                        "status": "retrying",
-                        "error_message": str(e),
-                    }
-                )
-            else:
-                logger.error(
-                    {
-                        "message": "PPTの生成に失敗し、最大再試行回数に達しました。",
-                        "user_name": query.userName,
-                        "status": "problem",
-                        "error_message": str(e),
-                    }
-                )
-
-    if ppt_file is None:
-        return JSONResponse({"error": "パワポの生成は失敗しました。"}, status_code=500)
-
-    # ------------- ファイル名の生成 -------------
-    first_question = (
-        (query.conversation[0].get("question", {}) or {}).get("content", "")
-        if getattr(query, "conversation", None)
-        else ""
-    )
-    thread_id = query.threadId
-    ppt_filename = generate_filename(first_question, thread_id, "pptx")
-    user_hash = generate_user_hash(query.userName)
-
-    # ------------- ローカル保存 -------------
-    try:
-        save_ppt_to_local(ppt_file, ppt_filename, user_hash)
-        logger.info(
-            {
-                "message": "パワポの生成と保存は成功しました。",
-                "user_name": query.userName,
-                "file_name": ppt_filename,
-                "status": "success",
-            }
-        )
-        return JSONResponse({"fileId": ppt_filename}, 200)
-
-    except Exception as e:
-        logger.error(
-            {
-                "message": "パワポの保存にエラーが発生しました。",
-                "user_name": query.userName,
-                "status": "failed",
-                "error_message": str(e),
-            }
-        )
-        return JSONResponse({"error": "PPTファイルの保存は失敗しました。"}, status_code=500)
-
-
-
-@router.post("/generate-html")
-async def generate_html(query: GenerateQuery):
-    """
-    HTMLを生成し保存するエンドポイント。
-    """
-    from src.services.html_generator.html_generator import HTMLContentParser, HTMLGenerator
-    from src.services.html_saver.html_save import save_html_to_local
-    logger.info(
-        {
-            "message": "HTML生成リクエストを受信しました。",
-            "user_name": query.userName,
-            "mode": "html",
-            "status": "received",
-        }
-    )
-
-    user_hash = generate_user_hash(query.userName)
+            assets_dict = query.assets.model_dump()  # type: ignore[assignment]
+        except AttributeError:
+            assets_dict = query.assets or {}
 
     try:
-        # HTMLコンテンツの解析
-        html_content_parser = HTMLContentParser()
-        content_data = html_content_parser.parse(
+        artifacts: PresentationArtifacts = _pipeline.build(
             user_name=query.userName,
             conversation=query.conversation,
+            assets=assets_dict,
         )
-
-        # HTMLの生成
-        html_generator = HTMLGenerator()
-        html_content = html_generator.generate(content_data)
-
-        # ファイル名の生成
-        first_question = query.conversation[0].get("question", {}).get("content", "")
-        thread_id = query.threadId
-        html_filename = generate_filename(first_question, thread_id, "html")
-
-        # HTMLファイルをローカルに保存
-        save_html_to_local(html_content, html_filename, user_hash)
-
-        logger.info(
-            {
-                "message": "HTMLの生成と保存は成功しました。",
-                "user_name": query.userName,
-                "file_name": html_filename,
-                "status": "success",
-            }
-        )
-
-        # 成功レスポンスを返す
-        return JSONResponse({"fileId": html_filename, "mode": "html"}, 200)
-
-    except Exception as e:
+    except Exception as exc:  # pragma: no cover - defensive logging
         logger.error(
             {
-                "message": "HTMLの生成にエラーが発生しました。",
+                "message": "プレゼンテーションの生成に失敗しました。",
                 "user_name": query.userName,
-                "status": "failed",
-                "error_message": str(e),
+                "status": "problem",
+                "error_message": str(exc),
             }
         )
+        return JSONResponse({"error": "プレゼンテーションの生成に失敗しました。"}, status_code=500)
 
-        return JSONResponse(
-            {"error": "HTMLファイルの生成は失敗しました。"}, status_code=500
-        )
-
-
-async def decode_indicator_charts(indicator_charts_data):
-    """
-    チャート情報をデコードする。
-    """
-    logger.info(
-            {
-                "message": "チャートのデコードを開始します。",
-                "operation": "decode_charts",
-                "status": "started",
-            }
-        )
-    
-    decoded_charts = []
-    if not indicator_charts_data:
-        logger.info({"message": "デコードできるチャートがありません。",
-                     "operation": "decode_charts",
-                     "status": "completed"})
-        return decoded_charts
+    first_question = _extract_first_question(query.conversation)
+    user_hash = generate_user_hash(query.userName)
+    ppt_filename = generate_filename(first_question, query.threadId, "pptx")
+    html_filename = generate_filename(first_question, query.threadId, "html")
 
     try:
-        for chart in indicator_charts_data:
-            chart_dict = chart.dict()
-            if "encodedImage" not in chart_dict:
-                logger.warning(
-                    {
-                        "message": "チャートのデータが不完全です: 'encodedImage' が欠けています。",
-                        "operation": "decode_charts",
-                    }
-                )
-                continue
-
-            # デコードされたチャート情報を保存
-            decoded_chart = {"image": BytesIO(b64decode(chart_dict["encodedImage"]))}
-            # title と label はオプショナルとして含める
-            if "title" in chart_dict:
-                decoded_chart["title"] = chart_dict["title"]
-            if "label" in chart_dict:
-                decoded_chart["label"] = chart_dict["label"]
-
-            decoded_charts.append(decoded_chart)
-
-        logger.info(
-            {"message": f"{len(decoded_charts)} 枚のチャートのデコードが成功しました。",
-             "operation": "decode_charts",
-             "status": "completed"}
-        )
-        
-    except Exception as e:
+        save_html_to_local(artifacts.html, html_filename, user_hash)
+        save_ppt_to_local(artifacts.ppt_stream, ppt_filename, user_hash)
+    except Exception as exc:  # pragma: no cover - defensive logging
         logger.error(
             {
-                "message": "Base64画像デコード中にエラーが発生しました。",
-                "operation": "decode_charts",
-                "error_message": str(e),
+                "message": "生成ファイルの保存に失敗しました。",
+                "user_name": query.userName,
                 "status": "problem",
+                "error_message": str(exc),
             }
         )
-        raise ValueError("画像デコードに失敗しました。")
+        return JSONResponse({"error": "生成ファイルの保存に失敗しました。"}, status_code=500)
 
-    return decoded_charts
+    logger.info(
+        {
+            "message": "プレゼンテーションの生成と保存が完了しました。",
+            "user_name": query.userName,
+            "ppt_filename": ppt_filename,
+            "html_filename": html_filename,
+            "status": "success",
+        }
+    )
 
-
-async def generate_presentation_file(query: GenerateQuery, decoded_charts):
-    """
-    パワポファイルを生成する。
-    """
-    max_retries = 2  # 最大試行回数
-
-    for attempt in range(max_retries + 1):
-        try:
-            ppt_content = ContentParser().parse(
-                user_name=query.userName,
-                conversation=query.conversation,
-                decoded_charts=decoded_charts,
-            )
-
-            ppt_generator = PPTGenerator(
-                template_path="resources/smbc_template_new.pptx"
-            )
-            ppt_file = ppt_generator.generate(ppt_content)
-
-            return ppt_file
-
-        except Exception as e:
-            if attempt < max_retries:
-                logger.warning(
-                    {
-                        "message": "PPTの生成に失敗しました。再試行中。",
-                        "user_name": query.userName,
-                        "attempt": attempt + 1,
-                        "status": "retrying",
-                        "error_message": str(e),
-                    }
-                )
-            else:
-                logger.error(
-                    {
-                        "message": "PPTの生成に失敗し、最大再試行回数に達しました。",
-                        "user_name": query.userName,
-                        "status": "problem",
-                        "error_message": str(e),
-                    }
-                )
-                return None
+    return JSONResponse(
+        {
+            "pptFileId": ppt_filename,
+            "htmlFileId": html_filename,
+            "userHash": user_hash,
+        },
+        status_code=200,
+    )
 
 
 def generate_filename(user_question: str, thread_id: str, file_type: str = "pptx") -> str:
-    """
-    ファイル名を生成する。
-    """
     current_date = datetime.now().strftime("%Y%m%d")
     sanitized_question = re.sub(r"[^\w\-_]", "_", user_question).rstrip("_")
     filename = f"{current_date}-{sanitized_question}-{thread_id}.{file_type}"
@@ -302,33 +100,13 @@ def generate_filename(user_question: str, thread_id: str, file_type: str = "pptx
 
 
 def generate_user_hash(user_name: str) -> str:
-    """
-    ユーザー名のハッシュ値を生成する。
-    """
-    user_hash = hashlib.md5(user_name.encode("utf-8")).hexdigest()
-    return user_hash
+    return hashlib.md5(user_name.encode("utf-8")).hexdigest()
 
 
-# =========================================================
-# 起動MODE
-# =========================================================
-MODE: Literal["ppt", "html"] = os.getenv("MODE", "html").lower()  # type: ignore[assignment]
+def _extract_first_question(conversation: Sequence[Dict[str, Any]]) -> str:
+    if not conversation:
+        return "presentation"
+    first = conversation[0] or {}
+    question = (first.get("question") or {}).get("content") if isinstance(first, dict) else None
+    return (question or "presentation").strip() or "presentation"
 
-if MODE == "ppt":
-    router.add_api_route(
-        "/generate",
-        generate_ppt,
-        methods=["POST"],
-        name="generate (ppt)",
-        tags=["generate"],
-    )
-elif MODE == "html":
-    router.add_api_route(
-        "/generate",
-        generate_html,
-        methods=["POST"],
-        name="generate (html)",
-        tags=["generate"],
-    )
-else:
-    raise RuntimeError(f"Invalid MODE={MODE!r}. Use 'ppt' or 'html'.")
