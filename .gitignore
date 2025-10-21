@@ -3,8 +3,3 @@ __pycache__/
 .env
 .DS_Store
 .vscode
-workspace/
-output/
-*.pptx
-*.html
-node_modules/

@@ -5,7 +5,6 @@ from langchain_openai import AzureChatOpenAI
 
 load_dotenv()
 
-
 def LLM(
     deployment_name: Literal[
         "gpt-4o",
@@ -13,17 +12,10 @@ def LLM(
         "gpt-4o-new",
         "gpt-5",
     ] = "gpt-5",
-    json_mode: bool = False,
+    json_mode: bool = True,
     **kwargs: Any,
 ) -> AzureChatOpenAI:
-    """
-    Create Azure OpenAI LLM instance
-    
-    Args:
-        deployment_name: Model deployment name
-        json_mode: Enable JSON response format
-        **kwargs: Additional arguments for AzureChatOpenAI
-    """
+
     if deployment_name in ("gpt-4o", "gpt-4o-new"):
         model_name = "gpt-4o"
     elif deployment_name == "gpt-4o-mini":
