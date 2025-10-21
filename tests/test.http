@@ -1,0 +1,19 @@
+### Generate PPT
+POST http://127.0.0.1:8000/generate-ppt
+Content-Type: application/json
+
+{
+    "userName": "Local Test User",
+    "userQuestion": "米CPIについて",
+    "answer": "50%"
+}
+
+### Generate HTML
+POST http://127.0.0.1:8000/generate-html
+Content-Type: application/json
+
+{
+    "userName": "Local Test User",
+    "userQuestion": "米CPIについて",
+    "answer": "50%"
+}

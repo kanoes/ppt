@@ -1,0 +1,74 @@
+[
+    {
+        "template_id": "1p",
+        "main": {
+            "slide_number": 20,
+            "shape_number": {
+                "title": 0,
+                "chart": 1,
+                "chart_title": 3,
+                "explanation": 2
+            },
+            "placeholder_number": {
+                "title": 0,
+                "chart": 10
+            }
+        },
+        "sub1": {}
+    },
+    {
+        "template_id": "2p",
+        "main": {
+            "slide_number": 21,
+            "shape_number": {
+                "title": 0,
+                "chart": [
+                    1,
+                    2
+                ],
+                "chart_title": [
+                    3,
+                    4
+                ],
+                "explanation": 5
+            },
+            "placeholder_number": {
+                "title": 0,
+                "chart": [
+                    10,
+                    11
+                ]
+            }
+        }
+    },
+    {
+        "template_id": "4p",
+        "main": {
+            "slide_number": 22,
+            "shape_number": {
+                "title": 0,
+                "chart": [
+                    1,
+                    2,
+                    3,
+                    4
+                ],
+                "chart_title": [
+                    5,
+                    6,
+                    7,
+                    8
+                ]
+            },
+            "placeholder_number": {
+                "title": 0,
+                "chart": [
+                    10,
+                    11,
+                    12,
+                    13
+                ]
+            }
+        }
+    }
+]

@@ -1,0 +1,15 @@
+[
+    {
+        "template_id": "1",
+        "main": {
+            "slide_number": 11,
+            "placeholder_number": {
+                "title": 0
+            },
+            "shape_number": {
+                "table": 0
+            }
+        },
+        "sub1": {}
+    }
+]

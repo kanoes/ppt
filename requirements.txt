@@ -1,0 +1,11 @@
+fastapi==0.115.4
+gunicorn==23.0.0
+langchain-core==0.2.5
+langchain-openai==0.1.8
+langchain==0.2.3
+openai==1.55.3 
+python-dotenv==1.0.1
+python-multipart==0.0.16
+uvicorn==0.32.0
+azure-monitor-opentelemetry==1.2.0
+azure-monitor-opentelemetry-exporter==1.0.0b32
