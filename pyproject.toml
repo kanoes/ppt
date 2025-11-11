@@ -5,9 +5,9 @@ description = "PPT file automation for Market-Report"
 authors = ["en_kanoe <en_kanoe@outlook.jp>"]
 readme = "README.md"
 packages = [
-    {include = "shared", from = "shared"},
-    {include = "html_generation", from = "html/src"},
-    {include = "ppt_generation", from = "ppt/src"},
+    {include = "shared", from = "shared/src"},
+    {include = "html_app", from = "html/src"},
+    {include = "ppt_app", from = "ppt/src"},
 ]
 package-mode = false
 

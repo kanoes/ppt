@@ -9,9 +9,7 @@ from pptx import Presentation
 
 logging.basicConfig(level=logging.INFO)
 
-RESOURCE_ROOT = Path(__file__).resolve().parents[2] / "ppt" / "resources"
-
-if not (RESOURCE_ROOT / "smbc_template_new.pptx").exists():
+if not (Path(__file__).resolve().parents[2] / "resources" / "smbc_template_new.pptx").exists():
     pytest.skip("Skipping template info test; presentation template not available", allow_module_level=True)
 
 
@@ -22,7 +20,7 @@ def test_slide_info(slide_number: int):
     """
     try:
         # プレゼンテーションファイルを読み込む
-        prs = Presentation(RESOURCE_ROOT / "smbc_template_new.pptx")
+        prs = Presentation("resources/smbc_template_new.pptx")
 
         # 指定されたスライドを取得
         slide = prs.slides[slide_number]

@@ -15,7 +15,7 @@ from pptx.enum.shapes import MSO_SHAPE_TYPE
 from pptx.util import Pt
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-RESOURCES_DIR = PROJECT_ROOT / "ppt" / "resources"
+RESOURCES_DIR = PROJECT_ROOT / "resources"
 REQUIRED_FILES = [
     "test_title_template_info.json",
     "test_chart_template_info.json",
@@ -148,8 +148,7 @@ def extract_all_between_tags(tag, text):
         raise
 
 def test_insert_content():
-    template_path = RESOURCES_DIR / "smbc_template_new.pptx"
-    presentation = Presentation(template_path)
+    presentation = Presentation("resources/smbc_template_new.pptx")
 
     # 目標テンプレートの情報を取得
     template_info_standard = "1"  # ←←←標準テンプレートID
@@ -177,7 +176,7 @@ def test_insert_content():
     add_text_to_shape(slide.placeholders[title_placeholder_number], "例文")
     add_text_to_shape(slide.shapes[subtitle_shape_number], "例文")
     add_text_to_shape(slide.shapes[body_shape_number], "テスト文だけですテスト文だけですテスト文だけですテスト文だけですテスト文だけですテスト文だけですテスト文だけですテスト文だけですテスト文だけですテスト文だけですテスト文だけですテスト文だけですテスト文だけですテスト文だけです")
-    presentation.save(template_path)
+    presentation.save("resources/smbc_template_new.pptx")
 
 
 if __name__ == "__main__":

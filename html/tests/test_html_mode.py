@@ -7,16 +7,13 @@ import sys
 import time
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.append(str(PROJECT_ROOT))
-
-for relative in ("shared", "html/src", "ppt/src"):
+for relative in ("shared/src", "html/src", "ppt/src"):
     candidate = PROJECT_ROOT / relative
     if candidate.exists() and str(candidate) not in sys.path:
         sys.path.append(str(candidate))
 
-from html_generation.generator.html_generator import HTMLContentParser, HTMLGenerator
-from html_generation.saver.html_save import save_html_to_local
+from html_app.generator.html_generator import HTMLContentParser, HTMLGenerator
+from html_app.saver.html_save import save_html_to_local
 from shared.api.routes_async import generate_filename, generate_user_hash
 
 
@@ -130,7 +127,7 @@ if __name__ == "__main__":
     USER_HASH_OVERRIDE = None
 
     JSON_FILE = str((Path(__file__).parent / "cases" / "test_1.json").resolve())
-    PROMPT_PATH = str((PROJECT_ROOT / "html" / "src" / "html_generation" / "prompt" / "html_generator_prompt.py").resolve())
+    PROMPT_PATH = str((PROJECT_ROOT / "html" / "src" / "html_app" / "prompt" / "html_generator_prompt.py").resolve())
 
     start_time = time.time()
     run_once(

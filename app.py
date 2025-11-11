@@ -14,7 +14,7 @@ def _configure_paths() -> None:
     """Ensure package subdirectories are importable when running locally."""
 
     base_dir = Path(__file__).resolve().parent
-    for relative in ("shared", "html/src", "ppt/src"):
+    for relative in ("shared/src", "html/src", "ppt/src"):
         candidate = base_dir / relative
         if candidate.exists():
             candidate_str = str(candidate)
