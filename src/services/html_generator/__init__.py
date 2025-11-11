@@ -1,1 +1,0 @@
-# HTML generator service package 

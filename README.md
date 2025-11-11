@@ -14,7 +14,7 @@
    ```
    pip install poetry
    poetry install --no-root
-   pip install -e ./src/api  -e ./src/services -e ./src/tests
+   pip install -e ./shared -e ./html/src -e ./ppt/src
    ```
 
 3. poetry を起動します。
