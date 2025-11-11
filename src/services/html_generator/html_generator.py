@@ -106,11 +106,6 @@ class HTMLContentParser:
             merged_charts = [c for it in qa_items for c in it["charts"]]
             has_any_charts = any(it["has_charts"] for it in qa_items)
             has_any_sources = any(it["has_sources"] for it in qa_items)
-            all_sources = [
-                source
-                for it in qa_items
-                for source in (it.get("sources") or [])
-            ]
 
             content_data = {
                 "title": title_q,
@@ -119,7 +114,6 @@ class HTMLContentParser:
                 "charts": merged_charts,
                 "has_charts": has_any_charts,
                 "has_sources": has_any_sources,
-                "sources": all_sources,
                 "chart_info": "\n".join([it["chart_info"] for it in qa_items if it["chart_info"]]),
                 "source_info": "\n".join([it["source_info"] for it in qa_items if it["source_info"]]),
             }
