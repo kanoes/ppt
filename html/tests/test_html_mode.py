@@ -7,7 +7,11 @@ import sys
 import time
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-for relative in ("shared/src", "html/src", "ppt/src"):
+# Add project root to sys.path so 'shared' module can be imported
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+# Add src subdirectories for html and ppt modules
+for relative in ("html/src", "ppt/src"):
     candidate = PROJECT_ROOT / relative
     if candidate.exists() and str(candidate) not in sys.path:
         sys.path.append(str(candidate))

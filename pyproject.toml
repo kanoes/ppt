@@ -5,7 +5,7 @@ description = "PPT file automation for Market-Report"
 authors = ["en_kanoe <en_kanoe@outlook.jp>"]
 readme = "README.md"
 packages = [
-    {include = "shared", from = "shared/src"},
+    {include = "shared", from = "."},
     {include = "html_app", from = "html/src"},
     {include = "ppt_app", from = "ppt/src"},
 ]

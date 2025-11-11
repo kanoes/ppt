@@ -1,11 +1,10 @@
-import os
 """PostgreSQL metadata helpers shared across both generators."""
 
 import os
 from typing import Any, Dict, Optional
 
 from shared.logging import get_logger
-from shared.services.db import get_pg_pool
+from shared.db.db import get_pg_pool
 
 logger = get_logger("pg_metadata")
 

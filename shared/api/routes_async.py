@@ -3,9 +3,10 @@
 import hashlib
 import os
 import re
-from datetime import datetime
 from base64 import b64decode
+from datetime import datetime
 from io import BytesIO
+from pathlib import Path
 from typing import Literal, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
@@ -13,13 +14,16 @@ from fastapi.responses import FileResponse, JSONResponse
 
 from shared.logging import get_logger
 from shared.api.generate_schema import GenerateQuery, IndicatorChart
-from shared.common.auth import get_current_user
-from shared.services.pg_metadata import get_ppt_metadata, save_ppt_metadata
-from shared.services.task_manager import task_manager
+from shared.auth import get_current_user
+from shared.db.pg_metadata import get_ppt_metadata, save_ppt_metadata
+from shared.api.task_manager import task_manager
 
 logger = get_logger("routes_async")
 
 router = APIRouter()
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PPT_RESOURCES = PROJECT_ROOT / "ppt" / "resources"
 
 
 @router.post("/generate")
@@ -266,8 +270,8 @@ async def process_generation_task(task_id: str, query: GenerateQuery, mode: str)
 
 
 async def generate_ppt_internal(task_id: str, query: GenerateQuery) -> str:
-    from ppt_app.generator.pres_generator import ContentParser, PPTGenerator
-    from ppt_app.saver.pres_save import save_ppt_to_local
+    from ppt_generation.generator.pres_generator import ContentParser, PPTGenerator
+    from ppt_generation.saver.pres_save import save_ppt_to_local
     
     await task_manager.update_task(task_id, progress=20, message="解析会话内容")
     
@@ -306,7 +310,7 @@ async def generate_ppt_internal(task_id: str, query: GenerateQuery) -> str:
     )
     
     await task_manager.update_task(task_id, progress=60, message="Generate PPT file")
-    ppt_generator = PPTGenerator(template_path="resources/smbc_template_new.pptx")
+    ppt_generator = PPTGenerator(template_path=str(PPT_RESOURCES / "smbc_template_new.pptx"))
     ppt_file = ppt_generator.generate(ppt_content)
     
     await task_manager.update_task(task_id, progress=80, message="Save PPT file")
@@ -330,8 +334,8 @@ async def generate_ppt_internal(task_id: str, query: GenerateQuery) -> str:
 
 
 async def generate_html_internal(task_id: str, query: GenerateQuery) -> str:
-    from html_app.generator.html_generator import HTMLContentParser, HTMLGenerator
-    from html_app.saver.html_save import save_html_to_local
+    from html_generation.generator.html_generator import HTMLContentParser, HTMLGenerator
+    from html_generation.saver.html_save import save_html_to_local
     
     await task_manager.update_task(task_id, progress=30, message="Parse HTML content")
     

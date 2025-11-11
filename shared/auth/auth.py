@@ -1,5 +1,3 @@
-import os
-import traceback
 """Authentication helpers shared across HTML and PPT endpoints."""
 
 import os

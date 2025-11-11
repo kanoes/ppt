@@ -14,7 +14,11 @@ def _configure_paths() -> None:
     """Ensure package subdirectories are importable when running locally."""
 
     base_dir = Path(__file__).resolve().parent
-    for relative in ("shared/src", "html/src", "ppt/src"):
+    # Add project root to sys.path so 'shared' module can be imported
+    if str(base_dir) not in sys.path:
+        sys.path.insert(0, str(base_dir))
+    # Add src subdirectories for html and ppt modules
+    for relative in ("html/src", "ppt/src"):
         candidate = base_dir / relative
         if candidate.exists():
             candidate_str = str(candidate)
@@ -29,7 +33,7 @@ load_dotenv(override=True)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    from shared.services.db import init_ppt_metadata_table
+    from shared.db.db import init_ppt_metadata_table
     await init_ppt_metadata_table()
     yield
 app = FastAPI(lifespan=lifespan)
