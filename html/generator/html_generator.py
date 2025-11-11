@@ -5,8 +5,8 @@ from typing import Any, Dict, List, Optional
 
 from dotenv import load_dotenv
 
-from html_app.generator.utils import HTMLLLMInvoker
-from html_app.prompt.html_generator_prompt import html_generator_prompt
+from html.generator.utils import HTMLLLMInvoker
+from html.prompt.html_generator_prompt import html_generator_prompt
 from shared.logging import get_logger
 
 load_dotenv()

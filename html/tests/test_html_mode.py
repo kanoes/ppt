@@ -10,14 +10,9 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 # Add project root to sys.path so 'shared' module can be imported
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
-# Add src subdirectories for html and ppt modules
-for relative in ("html/src", "ppt/src"):
-    candidate = PROJECT_ROOT / relative
-    if candidate.exists() and str(candidate) not in sys.path:
-        sys.path.append(str(candidate))
 
-from html_app.generator.html_generator import HTMLContentParser, HTMLGenerator
-from html_app.saver.html_save import save_html_to_local
+from html.generator.html_generator import HTMLContentParser, HTMLGenerator
+from html.saver.html_save import save_html_to_local
 from shared.api.routes_async import generate_filename, generate_user_hash
 
 
@@ -131,7 +126,7 @@ if __name__ == "__main__":
     USER_HASH_OVERRIDE = None
 
     JSON_FILE = str((Path(__file__).parent / "cases" / "test_1.json").resolve())
-    PROMPT_PATH = str((PROJECT_ROOT / "html" / "src" / "html_app" / "prompt" / "html_generator_prompt.py").resolve())
+    PROMPT_PATH = str((PROJECT_ROOT / "html" / "prompt" / "html_generator_prompt.py").resolve())
 
     start_time = time.time()
     run_once(

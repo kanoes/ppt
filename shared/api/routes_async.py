@@ -7,7 +7,7 @@ from base64 import b64decode
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from fastapi.responses import FileResponse, JSONResponse
@@ -270,8 +270,8 @@ async def process_generation_task(task_id: str, query: GenerateQuery, mode: str)
 
 
 async def generate_ppt_internal(task_id: str, query: GenerateQuery) -> str:
-    from ppt_generation.generator.pres_generator import ContentParser, PPTGenerator
-    from ppt_generation.saver.pres_save import save_ppt_to_local
+    from ppt.generator.pres_generator import ContentParser, PPTGenerator
+    from ppt.saver.pres_save import save_ppt_to_local
     
     await task_manager.update_task(task_id, progress=20, message="解析会话内容")
     
@@ -334,8 +334,8 @@ async def generate_ppt_internal(task_id: str, query: GenerateQuery) -> str:
 
 
 async def generate_html_internal(task_id: str, query: GenerateQuery) -> str:
-    from html_generation.generator.html_generator import HTMLContentParser, HTMLGenerator
-    from html_generation.saver.html_save import save_html_to_local
+    from html.generator.html_generator import HTMLContentParser, HTMLGenerator
+    from html.saver.html_save import save_html_to_local
     
     await task_manager.update_task(task_id, progress=30, message="Parse HTML content")
     

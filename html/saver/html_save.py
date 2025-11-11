@@ -1,10 +1,8 @@
+"""Helpers for persisting generated HTML artifacts."""
+
 import os
 from pathlib import Path
 from typing import BinaryIO
-
-"""Helpers for persisting generated HTML artifacts."""
-
-from pathlib import Path
 
 from shared.logging import get_logger
 

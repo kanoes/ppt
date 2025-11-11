@@ -5,15 +5,15 @@ from typing import Any, BinaryIO, Dict, List, Optional, Union
 
 from pptx import Presentation
 
-from ppt_app.generator.slide_generate import (
+from ppt.generator.slide_generate import (
     ChartSlideFactory,
     NormalSlideFactory,
     ReferenceSlideFactory,
     TitleSlideFactory,
 )
-from ppt_app.generator.utils import LLMInvoker, PPTUtils
-from ppt_app.prompt.content_parser_prompt import content_parser_prompt
-from ppt_app.prompt.content_parser_prompt_without_chart import (
+from ppt.generator.utils import LLMInvoker, PPTUtils
+from ppt.prompt.content_parser_prompt import content_parser_prompt
+from ppt.prompt.content_parser_prompt_without_chart import (
     content_parser_prompt_without_chart,
 )
 from shared.logging import get_logger

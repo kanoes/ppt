@@ -17,13 +17,6 @@ def _configure_paths() -> None:
     # Add project root to sys.path so 'shared' module can be imported
     if str(base_dir) not in sys.path:
         sys.path.insert(0, str(base_dir))
-    # Add src subdirectories for html and ppt modules
-    for relative in ("html/src", "ppt/src"):
-        candidate = base_dir / relative
-        if candidate.exists():
-            candidate_str = str(candidate)
-            if candidate_str not in sys.path:
-                sys.path.append(candidate_str)
 
 
 _configure_paths()

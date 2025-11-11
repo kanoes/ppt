@@ -1,12 +1,11 @@
 import json
-import logging
 import random
 import os
 
 from dotenv import load_dotenv
 
-from ppt_app.generator.utils import LLMInvoker, OtherUtils, PPTUtils
-from ppt_app.prompt.normal_template_prompt import (
+from ppt.generator.utils import LLMInvoker, OtherUtils, PPTUtils
+from ppt.prompt.normal_template_prompt import (
     template1,
     template1B,
     template2,
