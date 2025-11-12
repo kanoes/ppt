@@ -11,7 +11,7 @@ class Source(BaseModel):
 class IndicatorChart(BaseModel):
     """チャート情報"""
     title: Optional[str] = None
-    encodedImage: str = None
+    encodedImage: Optional[str] = None
 
 
 class Assets(BaseModel):

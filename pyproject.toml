@@ -6,8 +6,8 @@ authors = ["en_kanoe <en_kanoe@outlook.jp>"]
 readme = "README.md"
 packages = [
     {include = "shared", from = "."},
-    {include = "html_app", from = "html/src"},
-    {include = "ppt_app", from = "ppt/src"},
+    {include = "html", from = "."},
+    {include = "ppt", from = "."},
 ]
 package-mode = false
 
@@ -26,6 +26,9 @@ uvicorn = "0.32.0"
 pptx-ea-font = "0.0.4"
 azure-monitor-opentelemetry = "1.2.0"
 azure-monitor-opentelemetry-exporter = "^1.0.0b32"
+asyncpg = "0.29.0"
+aiohttp = "^3.11.7"
+pydantic = "^2.10.1"
 
 [build-system]
 requires = ["poetry-core"]
