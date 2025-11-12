@@ -1,8 +1,5 @@
 import json
 import random
-import os
-
-from dotenv import load_dotenv
 
 from ppt.generator.utils import LLMInvoker, OtherUtils, PPTUtils
 from ppt.prompt.normal_template_prompt import (
@@ -17,13 +14,11 @@ from ppt.prompt.normal_template_prompt import (
 )
 from shared.logging import get_logger
 
-load_dotenv()
-
 logger = get_logger("slide_generate")
 
 llm_invoker = LLMInvoker()
 
-# 　テンプレート情報の読み込み
+# Load template metadata
 with open("resources/title_template_info.json", "r") as file:
     title_template_info = json.load(file)
 
@@ -83,7 +78,7 @@ class TitleSlideFactory:
             
         except Exception as e:
             logger.error({
-                "message": "タイトルスライドの作成中にエラーが発生しました。",
+                "message": "Failed to build title slide",
                 "operation": "create_title_slide",
                 "error_message": str(e),
                 "status": "problem",
@@ -176,7 +171,7 @@ class ChartSlideFactory:
 
         except Exception as e:
             logger.error({
-                "message": "1pチャートスライドの作成中にエラーが発生しました。",
+                "message": "Failed to build 1p chart slide",
                 "operation": "create_chart_slide_1p",
                 "error_message": str(e),
                 "status": "problem",
@@ -245,7 +240,7 @@ class ChartSlideFactory:
 
         except Exception as e:
             logger.error({
-                "message": "2pチャートスライドの作成中にエラーが発生しました。",
+                "message": "Failed to build 2p chart slide",
                 "operation": "create_chart_slide_2p",
                 "error_message": str(e),
                 "status": "problem",
@@ -308,7 +303,7 @@ class ChartSlideFactory:
 
         except Exception as e:
             logger.error({
-                "message": "4pチャートスライドの作成中にエラーが発生しました。",
+                "message": "Failed to build 4p chart slide",
                 "operation": "create_chart_slide_4p",
                 "error_message": str(e),
                 "status": "problem",
@@ -387,7 +382,7 @@ class ReferenceSlideFactory:
 
         except Exception as e:
             logger.error({
-                "message": "引用元スライドの作成中にエラーが発生しました。",
+                "message": "Failed to build reference slide",
                 "operation": "create_reference_slide",
                 "error_message": str(e),
                 "status": "problem",
@@ -424,7 +419,7 @@ class NormalSlideFactory:
             
         except Exception as e:
             logger.error({
-                "message": "テンプレート{template_id}スライドの作成中にエラーが発生しました。",
+                "message": f"Failed to build slide for template {template_id}",
                 "operation": f"create_template{template_id}_slide",
                 "error_message": str(e),
                 "status": "problem",

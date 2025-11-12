@@ -1,7 +1,7 @@
 """REST endpoints coordinating HTML and PPT generation."""
 
 import hashlib
-import os
+import asyncio
 import re
 from base64 import b64decode
 from datetime import datetime
@@ -12,6 +12,7 @@ from typing import Optional
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from fastapi.responses import FileResponse, JSONResponse
 
+from shared.config import settings
 from shared.logging import get_logger
 from shared.api.generate_schema import GenerateQuery, IndicatorChart
 from shared.auth import get_current_user
@@ -36,6 +37,8 @@ async def generate_async(
     if not user_name:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
+    await task_manager.cleanup_old_tasks()
+
     task_id = await task_manager.create_task()
     
     await save_ppt_metadata(
@@ -54,7 +57,7 @@ async def generate_async(
         "status": "created"
     })
     
-    mode = os.getenv("MODE", "html").lower()
+    mode = settings.mode
     
     background_tasks.add_task(
         process_generation_task,
@@ -75,8 +78,6 @@ async def get_task_status(
     task_id: str,
     timeout: Optional[int] = Query(30, ge=0, le=60)
 ):
-    import asyncio
-    
     start_time = asyncio.get_event_loop().time()
     poll_interval = 0.5
     
@@ -158,47 +159,36 @@ async def download_file(
     if not user_name:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
-    if ".." in file_id or "/" in file_id or "\\" in file_id:
+    if ".." in file_id or file_id.startswith("/") or "\\" in file_id:
         raise HTTPException(status_code=400, detail="Invalid file ID")
-    
-    file_path = None
-    
-    ppt_shared_dir = os.environ.get("PPTAUTO_SHARED_DIRECTORY")
-    generated_files_dir = os.environ.get("GENERATED_FILES_DIR", "generated_files")
-    
-    search_dirs = []
-    if ppt_shared_dir and os.path.exists(ppt_shared_dir):
-        search_dirs.append(ppt_shared_dir)
-    if os.path.exists(generated_files_dir):
-        search_dirs.append(generated_files_dir)
-    
-    for base_dir in search_dirs:
-        for user_hash_dir in os.listdir(base_dir):
-            potential_path = os.path.join(base_dir, user_hash_dir, file_id)
-            if os.path.isfile(potential_path):
-                file_path = potential_path
-                break
-        if file_path:
-            break
-    
-    if file_path is None or not os.path.exists(file_path):
+
+    candidate_paths = []
+    ppt_base = Path(settings.ppt_shared_directory or ".").resolve()
+    html_base = Path(settings.generated_files_dir).resolve()
+
+    candidate_paths.append(ppt_base / file_id)
+    candidate_paths.append(html_base / file_id)
+
+    file_path = next((path for path in candidate_paths if path.is_file()), None)
+
+    if file_path is None:
         logger.error({
             "message": "File not found",
             "file_id": file_id,
             "status": "not_found"
         })
         raise HTTPException(status_code=404, detail="File not found")
-    
+
     logger.info({
         "message": "File download request",
         "file_id": file_id,
-        "file_path": file_path,
+        "file_path": str(file_path),
         "status": "success"
     })
-    
+
     return FileResponse(
-        path=file_path,
-        filename=file_id,
+        path=str(file_path),
+        filename=Path(file_id).name,
         media_type="application/octet-stream"
     )
 
@@ -273,7 +263,7 @@ async def generate_ppt_internal(task_id: str, query: GenerateQuery) -> str:
     from ppt.generator.pres_generator import ContentParser, PPTGenerator
     from ppt.saver.pres_save import save_ppt_to_local
     
-    await task_manager.update_task(task_id, progress=20, message="解析会话内容")
+    await task_manager.update_task(task_id, progress=20, message="Analyze conversation")
     
     # Extract chart information from assets or conversation
     assets = getattr(query, "assets", None)
@@ -302,16 +292,17 @@ async def generate_ppt_internal(task_id: str, query: GenerateQuery) -> str:
     decoded_charts = await decode_indicator_charts(indicator_charts_in)
     
     await task_manager.update_task(task_id, progress=40, message="Parse PPT content")
-    ppt_content = ContentParser().parse(
-        user_name=query.userName,
-        conversation=query.conversation,
-        decoded_charts=decoded_charts,
-        source_list=source_list,
+    ppt_content = await asyncio.to_thread(
+        ContentParser().parse,
+        query.userName,
+        query.conversation,
+        decoded_charts,
+        source_list,
     )
     
     await task_manager.update_task(task_id, progress=60, message="Generate PPT file")
     ppt_generator = PPTGenerator(template_path=str(PPT_RESOURCES / "smbc_template_new.pptx"))
-    ppt_file = ppt_generator.generate(ppt_content)
+    ppt_file = await asyncio.to_thread(ppt_generator.generate, ppt_content)
     
     await task_manager.update_task(task_id, progress=80, message="Save PPT file")
     
@@ -326,11 +317,11 @@ async def generate_ppt_internal(task_id: str, query: GenerateQuery) -> str:
     user_hash = generate_user_hash(query.userName)
     
     # Save file
-    save_ppt_to_local(ppt_file, ppt_filename, user_hash)
-    
-    await task_manager.update_task(task_id, progress=90, message="PPT saved completed")
-    
-    return ppt_filename
+    relative_path = save_ppt_to_local(ppt_file, ppt_filename, user_hash)
+
+    await task_manager.update_task(task_id, progress=90, message="PPT saved")
+
+    return str(relative_path)
 
 
 async def generate_html_internal(task_id: str, query: GenerateQuery) -> str:
@@ -340,14 +331,15 @@ async def generate_html_internal(task_id: str, query: GenerateQuery) -> str:
     await task_manager.update_task(task_id, progress=30, message="Parse HTML content")
     
     html_content_parser = HTMLContentParser()
-    content_data = html_content_parser.parse(
-        user_name=query.userName,
-        conversation=query.conversation,
+    content_data = await asyncio.to_thread(
+        html_content_parser.parse,
+        query.userName,
+        query.conversation,
     )
     
     await task_manager.update_task(task_id, progress=60, message="Generate HTML")
     html_generator = HTMLGenerator()
-    html_content = html_generator.generate(content_data)
+    html_content = await asyncio.to_thread(html_generator.generate, content_data)
     
     await task_manager.update_task(task_id, progress=80, message="Save HTML file")
     
@@ -360,11 +352,11 @@ async def generate_html_internal(task_id: str, query: GenerateQuery) -> str:
     user_hash = generate_user_hash(query.userName)
     
     # Save file
-    save_html_to_local(html_content, html_filename, user_hash)
-    
-    await task_manager.update_task(task_id, progress=90, message="HTML saved completed")
-    
-    return html_filename
+    html_path = save_html_to_local(html_content, html_filename, user_hash)
+
+    await task_manager.update_task(task_id, progress=90, message="HTML saved")
+
+    return str(html_path)
 
 
 async def decode_indicator_charts(indicator_charts_data):
@@ -404,9 +396,9 @@ async def decode_indicator_charts(indicator_charts_data):
 
 def generate_filename(user_question: str, thread_id: str, file_type: str = "pptx") -> str:
     current_date = datetime.now().strftime("%Y%m%d")
-    sanitized_question = re.sub(r"[^\w\-_]", "_", user_question).rstrip("_")
-    filename = f"{current_date}-{sanitized_question}-{thread_id}.{file_type}"
-    return filename
+    sanitized_question = re.sub(r"[^\w\-]+", "_", user_question).strip("_") or "document"
+    sanitized_thread = re.sub(r"[^\w\-]+", "_", thread_id).strip("_") or "thread"
+    return f"{current_date}-{sanitized_question}-{sanitized_thread}.{file_type}"
 
 
 def generate_user_hash(user_name: str) -> str:

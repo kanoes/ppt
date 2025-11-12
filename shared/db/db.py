@@ -1,13 +1,13 @@
 """Database connection helpers shared across presentation modes."""
 
 import asyncio
-import os
 import threading
 from asyncio import Lock
 from typing import Dict, Optional, Tuple
 
 import asyncpg
 
+from shared.config import settings
 from shared.logging import get_logger
 
 logger = get_logger("db")
@@ -33,9 +33,9 @@ async def get_pg_pool() -> Optional[asyncpg.Pool]:
         if loop_id not in _POOL_LOCKS:
             _POOL_LOCKS[loop_id] = Lock()
 
-    conn_str = os.getenv("POSTGRES_CONN_STRING")
+    conn_str = settings.postgres_conn_string
     if not conn_str:
-        logger.error({"message": "POSTGRES_CONN_STRING environment variable not set", "status": "error"})
+        logger.error({"message": "Database connection string is not configured", "status": "error"})
         return None
     conn_str = conn_str.replace("postgresql+psycopg://", "postgresql://")
 

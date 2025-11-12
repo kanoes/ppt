@@ -2,17 +2,19 @@
 
 import os
 from pathlib import Path
-from typing import BinaryIO
 
+from shared.config import settings
 from shared.logging import get_logger
 
 logger = get_logger("html_save")
 
+BASE_HTML_DIR = Path(settings.generated_files_dir)
 
-def save_html_to_local(html_content: str, html_filename: str, user_hash: str) -> None:
+
+def save_html_to_local(html_content: str, html_filename: str, user_hash: str) -> Path:
     """Persist HTML output to the local filesystem."""
     try:
-        user_dir = Path(f"generated_files/{user_hash}")
+        user_dir = BASE_HTML_DIR / user_hash
         user_dir.mkdir(parents=True, exist_ok=True)
 
         html_file_path = user_dir / html_filename
@@ -26,6 +28,8 @@ def save_html_to_local(html_content: str, html_filename: str, user_hash: str) ->
             "user_hash": user_hash,
             "status": "completed"
         })
+
+        return Path(user_hash) / html_filename
 
     except Exception as e:
         logger.error({
@@ -41,7 +45,7 @@ def save_html_to_local(html_content: str, html_filename: str, user_hash: str) ->
 
 def get_html_file_path(html_filename: str, user_hash: str) -> Path:
     """Return the resolved path for a stored HTML file."""
-    user_dir = Path(f"generated_files/{user_hash}")
+    user_dir = BASE_HTML_DIR / user_hash
     return user_dir / html_filename
 
 

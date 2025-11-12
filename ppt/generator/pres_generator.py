@@ -1,7 +1,6 @@
 import io
 import json
-from pathlib import Path
-from typing import Any, BinaryIO, Dict, List, Optional, Union
+from typing import Any, BinaryIO, Dict, List, Optional
 
 from pptx import Presentation
 
@@ -19,117 +18,113 @@ from ppt.prompt.content_parser_prompt_without_chart import (
 from shared.logging import get_logger
 
 
-# ログ設定
 logger = get_logger("pres_generator")
 
 
 class ContentParser:
-    """
-    ユーザー入力を解析し、標準化されたリスト形式に変換するクラス
-    """
+    """Normalize user conversations into structured slide definitions."""
 
     def __init__(self, llm_invoker: Optional[LLMInvoker] = None) -> None:
-        # デフォルト設定またはユーザー指定の設定を使用
         self.llm_invoker = llm_invoker or LLMInvoker(json_mode=True)
 
     def parse(
-            self,
-            user_name: str,
-            conversation: List[Dict[str, Any]],
-            decoded_charts: Optional[List[Dict[str, Any]]] = None,
-            source_list: Optional[List[Dict[str, str]]] = None,
-        ) -> List[Dict[str, Any]]:
-            logger.info({
-                "message": "入力の解析を開始します。",
-                "operation": "input_parse",
-                "status": "started",
-            })
+        self,
+        user_name: str,
+        conversation: List[Dict[str, Any]],
+        decoded_charts: Optional[List[Dict[str, Any]]] = None,
+        source_list: Optional[List[Dict[str, str]]] = None,
+    ) -> List[Dict[str, Any]]:
+        logger.info({
+            "message": "Parsing conversation for PPT content",
+            "operation": "input_parse",
+            "status": "started",
+        })
 
-            try:
-                turns = conversation or []
-                # index があれば昇順、なければ元順
-                def _key(t):
-                    idx = t.get("index")
-                    return (0, idx) if isinstance(idx, int) else (1, len(turns))
+        try:
+            turns = conversation or []
 
-                turns = sorted(turns, key=_key)
+            def _key(turn: Dict[str, Any]) -> tuple[int, int]:
+                idx = turn.get("index")
+                return (0, idx) if isinstance(idx, int) else (1, len(turns))
 
-                def _nz(s: Optional[str]) -> str:
-                    return (s or "").strip()
+            turns = sorted(turns, key=_key)
 
-                def _get_q(t) -> str:
-                    return _nz(((t.get("question") or {}).get("content")))
+            def _nz(value: Optional[str]) -> str:
+                return (value or "").strip()
 
-                def _get_a(t) -> str:
-                    return _nz(((t.get("answer") or {}).get("content")))
+            def _get_question(turn: Dict[str, Any]) -> str:
+                return _nz((turn.get("question") or {}).get("content"))
 
-                first_question = _get_q(turns[0]) if turns else ""
-                question_title = first_question or "レポート"
+            def _get_answer(turn: Dict[str, Any]) -> str:
+                return _nz((turn.get("answer") or {}).get("content"))
 
-                qa_blocks = []
-                for t in turns:
-                    q, a = _get_q(t), _get_a(t)
-                    if q or a:
-                        qa_blocks.append(f"[Q]{q}[/Q]\n[A]{a}[/A]")
-                article = "\n\n".join(qa_blocks) if qa_blocks else ""
+            first_question = _get_question(turns[0]) if turns else ""
+            question_title = first_question or "Report"
 
-                dc = decoded_charts or []
-                for idx, entry in enumerate(dc):
-                    entry["id"] = str(idx)
-                    if not entry.get("title"):
-                        entry["title"] = f"チャート{idx+1}"
+            qa_blocks = []
+            for turn in turns:
+                question, answer = _get_question(turn), _get_answer(turn)
+                if question or answer:
+                    qa_blocks.append(f"[Q]{question}[/Q]\n[A]{answer}[/A]")
+            article = "\n\n".join(qa_blocks) if qa_blocks else ""
 
-                normal_slides, chart_slides = self._parse_content_slides(article, dc)
+            charts = decoded_charts or []
+            for idx, entry in enumerate(charts):
+                entry["id"] = str(idx)
+                if not entry.get("title"):
+                    entry["title"] = f"Chart {idx + 1}"
 
-                title_slide = {
-                    "title": question_title,
-                    "subtitle": user_name,
-                    "template": "title",
+            normal_slides, chart_slides = self._parse_content_slides(article, charts)
+
+            title_slide = {
+                "title": question_title,
+                "subtitle": user_name,
+                "template": "title",
+            }
+
+            reference_slide = None
+            if source_list:
+                reference_slide = {
+                    "title": "References",
+                    "reference": source_list,
+                    "template": "reference",
                 }
-
-                reference_slide = None
-                if source_list:
-                    reference_slide = {
-                        "title": "引用元",
-                        "reference": source_list,  # Source は Pydantic なので .title/.link アクセス可
-                        "template": "reference",
-                    }
-                else:
-                    logger.info({
-                        "message": "引用元なし。reference スライドは作成しません。",
-                        "operation": "input_parse",
-                    })
-
-                slides = [
-                    slide for slide in (
-                        [title_slide]
-                        + (chart_slides or [])
-                        + normal_slides
-                        + ([reference_slide] if reference_slide else [])
-                    ) if slide is not None
-                ]
-
+            else:
                 logger.info({
-                    "message": "入力の解析が完了しました。",
+                    "message": "No references supplied; skipping reference slide",
                     "operation": "input_parse",
-                    "status": "completed",
                 })
-                return slides
 
-            except Exception as e:
-                logger.error({
-                    "message": "入力の解析中にエラーが発生しました。",
-                    "error_message": str(e),
-                    "status": "problem"
-                })
-                raise
+            slides = [
+                slide
+                for slide in (
+                    [title_slide]
+                    + (chart_slides or [])
+                    + normal_slides
+                    + ([reference_slide] if reference_slide else [])
+                )
+                if slide is not None
+            ]
+
+            logger.info({
+                "message": "Conversation parsing completed",
+                "operation": "input_parse",
+                "status": "completed",
+            })
+            return slides
+
+        except Exception as e:
+            logger.error({
+                "message": "Failed to parse conversation",
+                "error_message": str(e),
+                "status": "problem"
+            })
+            raise
 
     def _parse_content_slides(
         self, answer: str, decoded_charts: Optional[List[Dict[str, Any]]] = None
     ) -> List[Dict[str, Any]]:
-        """
-        LLMを使用してメインコンテンツスライドを解析する
-        """
+        """Use the LLM to derive slide structure from the conversation text."""
         if decoded_charts:
             chart_content = "\n".join(
                 [f"{entry['id']}:{entry['title']}" for entry in decoded_charts]
@@ -140,7 +135,7 @@ class ContentParser:
             template = content_parser_prompt_without_chart
             kwargs = {"article": answer}
             logger.warning({
-                "message": "データがないため、チャートスライドの作成をスキップします。",
+                "message": "No chart data provided; chart slides will be skipped",
                 "operation": "input_parse"
             })
 
@@ -176,7 +171,7 @@ class ContentParser:
             return normal_slides, chart_slides
         except Exception as e:
             logger.error({
-                "message": "メインコンテンツスライドの解析中にエラーが発生しました。",
+                "message": "Failed to parse content slides",
                 "operation": "input_parse",
                 "error_message": str(e),
                 "status": "problem",
@@ -194,7 +189,6 @@ class PPTGenerator:
         normal_slide_factory: Optional[NormalSlideFactory] = None,
         ppt_utils: Optional[PPTUtils] = None,
     ) -> None:
-        # デフォルト設定またはユーザー指定の設定を使用
         self.template_path = template_path
         self.title_slide_factory = title_slide_factory or TitleSlideFactory()
         self.chart_slide_factory = chart_slide_factory or ChartSlideFactory()
@@ -205,11 +199,9 @@ class PPTGenerator:
         self.ppt_utils = ppt_utils or PPTUtils()
 
     def generate(self, slides: List[Dict[str, Any]]) -> BinaryIO:
-        """
-        標準化された入力に基づいてPPTを生成し、バイトストリームを返す
-        """
+        """Create a PPT file from structured slide data and return it as bytes."""
         logger.info({
-            "message": "パワポの生成を開始します。",
+            "message": "Rendering PowerPoint document",
             "operation": "slide_generate",
             "status": "started"
         })
@@ -218,26 +210,23 @@ class PPTGenerator:
             presentation = Presentation(self.template_path)
             original_slide_count = len(presentation.slides)
 
-            # 各スライドの作成
             for slide_data in slides:
                 self._create_slide(slide_data, presentation)
 
-            # テンプレートの元のスライドを削除
             self.ppt_utils.remove_original_slides(presentation, original_slide_count)
 
-            # バイトストリームとして保存
             ppt_io = io.BytesIO()
             presentation.save(ppt_io)
             ppt_io.seek(0)
             logger.info({
-                "message": "パワポの生成が完了しました。",
+                "message": "PowerPoint document rendered",
                 "operation": "slide_generate",
                 "status": "completed"
             })
             return ppt_io
         except Exception as e:
             logger.error({
-                "message": "パワポの生成中にエラーが発生しました。",
+                "message": "Failed to render PowerPoint document",
                 "operation": "slide_generate",
                 "error_message": str(e),
                 "status": "problem"
@@ -247,9 +236,7 @@ class PPTGenerator:
     def _create_slide(
         self, slide_data: Dict[str, Any], presentation: Presentation
     ) -> None:
-        """
-        標準化されたデータに基づいて単一のスライドを生成する
-        """
+        """Render a single slide from normalized slide data."""
         template = slide_data["template"]
 
         if template == "title":

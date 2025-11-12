@@ -1,9 +1,8 @@
-import os
 from typing import Any, Literal
-from dotenv import load_dotenv
+
 from langchain_openai import AzureChatOpenAI
 
-load_dotenv()
+from shared.config import settings
 
 def LLM(
     deployment_name: Literal[
@@ -27,9 +26,12 @@ def LLM(
 
     model_kwargs = kwargs.pop("model_kwargs", {})
 
+    if not settings.azure_openai_endpoint or not settings.azure_openai_api_key:
+        raise RuntimeError("Azure OpenAI credentials are not configured.")
+
     llm = AzureChatOpenAI(
-        azure_endpoint=os.environ["AZURE_OPENAI_ENDPOINT"],
-        openai_api_key=os.environ["AZURE_OPENAI_API_KEY"],
+        azure_endpoint=settings.azure_openai_endpoint,
+        openai_api_key=settings.azure_openai_api_key,
         openai_api_version="2024-10-21",
         deployment_name=deployment_name,
         model_name=model_name,
