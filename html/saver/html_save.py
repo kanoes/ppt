@@ -28,8 +28,9 @@ def save_html_to_local(html_content: str, html_filename: str, user_hash: str) ->
             "user_hash": user_hash,
             "status": "completed"
         })
+        base_dir_name = BASE_HTML_DIR.name
 
-        return Path(user_hash) / html_filename
+        return Path(base_dir_name) / user_hash / html_filename
 
     except Exception as e:
         logger.error({

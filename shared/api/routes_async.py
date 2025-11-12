@@ -33,7 +33,7 @@ async def generate_async(
     background_tasks: BackgroundTasks,
     user_properties: dict = Depends(get_current_user)
 ):
-    user_name = user_properties.get("displayName")
+    user_name = (user_properties.get("names") or {}).get("displayName")
     if not user_name:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
@@ -122,7 +122,7 @@ async def get_metadata(
     appId: Optional[str] = Query(None),
     user_properties: dict = Depends(get_current_user)
 ):
-    user_name = user_properties.get("displayName")
+    user_name = (user_properties.get("names") or {}).get("displayName")
     if not user_name:
         raise HTTPException(status_code=401, detail="Unauthorized")
     try:
@@ -155,7 +155,7 @@ async def download_file(
     file_id: str,
     user_properties: dict = Depends(get_current_user)
 ):
-    user_name = user_properties.get("displayName")
+    user_name = (user_properties.get("names") or {}).get("displayName")
     if not user_name:
         raise HTTPException(status_code=401, detail="Unauthorized")
 

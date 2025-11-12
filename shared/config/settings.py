@@ -24,7 +24,7 @@ class Settings:
     azure_openai_api_key: Optional[str]
     postgres_conn_string: Optional[str]
     ppt_shared_directory: Optional[str]
-    generated_files_dir: str
+    generated_files_dir: Optional[str]
     app_id: str
     coreauth_root_url: Optional[str]
     coreauth_app_id: Optional[str]
@@ -57,8 +57,6 @@ def get_settings() -> Settings:
         except ValueError:
             html_temperature = 1.0
 
-    generated_files_dir = os.getenv("GENERATED_FILES_DIR", "generated_files")
-
     return Settings(
         cors_origins=cors_origins,
         mode=os.getenv("MODE", "html").lower(),
@@ -69,7 +67,7 @@ def get_settings() -> Settings:
         azure_openai_api_key=os.getenv("AZURE_OPENAI_API_KEY"),
         postgres_conn_string=os.getenv("POSTGRES_CONN_STRING"),
         ppt_shared_directory=os.getenv("PPTAUTO_SHARED_DIRECTORY"),
-        generated_files_dir=generated_files_dir,
+        generated_files_dir=os.getenv("GENERATED_FILES_DIR"),
         app_id=os.getenv("APP_ID", "ppt-automate"),
         coreauth_root_url=os.getenv("COREAUTH_ROOT_URL"),
         coreauth_app_id=os.getenv("COREAUTH_APP_ID"),
