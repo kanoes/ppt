@@ -1,17 +1,14 @@
 """Authentication helpers shared across HTML and PPT endpoints."""
 
-import os
 import traceback
 from base64 import b64encode
 from typing import Optional
 
 from aiohttp import ClientSession
-from dotenv import load_dotenv
 from fastapi import Cookie, HTTPException, Request
 
+from shared.config import settings
 from shared.logging import get_logger
-
-load_dotenv()
 
 logger = get_logger("auth")
 
@@ -19,9 +16,9 @@ logger = get_logger("auth")
 async def verify_session_token(
     session_token: str | None, required_service: str = "ppt"
 ) -> tuple[bool, str, dict | None, str]:
-    core_auth_root_url = os.environ.get("COREAUTH_ROOT_URL")
-    core_auth_app_id = os.environ.get("COREAUTH_APP_ID")
-    core_auth_app_secret = os.environ.get("COREAUTH_APP_SECRET")
+    core_auth_root_url = settings.coreauth_root_url
+    core_auth_app_id = settings.coreauth_app_id
+    core_auth_app_secret = settings.coreauth_app_secret
 
     if not all([session_token, core_auth_root_url, core_auth_app_id, core_auth_app_secret]):
         logger.warning({

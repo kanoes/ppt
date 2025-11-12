@@ -1,15 +1,12 @@
 """Utilities used by the HTML generator."""
 
-import os
 import time
 from typing import Optional
 
-from dotenv import load_dotenv
-
+from shared.config import settings
 from shared.logging import get_logger
 from shared.llm.llm import LLM
 
-load_dotenv()
 logger = get_logger("html_utils")
 
 
@@ -22,10 +19,8 @@ class HTMLLLMInvoker:
         temperature: Optional[float] = None,
         json_mode: bool = False,
     ):
-        default_dep = os.getenv("DEFAULT_LLM_DEPLOYMENT", "gpt-5")
-        default_temp = float(os.getenv("DEFAULT_LLM_TEMPERATURE", "1"))
-
-        self.deployment = deployment_name or default_dep
+        self.deployment = deployment_name or settings.default_llm_deployment
+        default_temp = settings.html_llm_temperature
         self.temperature = default_temp if temperature is None else float(temperature)
 
         self.llm = LLM(

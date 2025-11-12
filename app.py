@@ -1,13 +1,13 @@
 """Application entry point for the presentation generator service."""
 
-import os
 import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+from shared.config import settings
 
 
 def _configure_paths() -> None:
@@ -21,17 +21,17 @@ def _configure_paths() -> None:
 
 _configure_paths()
 
-load_dotenv(override=True)
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     from shared.db.db import init_ppt_metadata_table
-    await init_ppt_metadata_table()
+
+    if not await init_ppt_metadata_table():
+        raise RuntimeError("Database initialization failed; service startup aborted.")
     yield
 app = FastAPI(lifespan=lifespan)
 
-cors_origins = os.getenv("CORS_ORIGINS", "*").split(",")
+cors_origins = settings.cors_origins
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins if cors_origins != ["*"] else ["*"],

@@ -2,34 +2,28 @@
 
 import copy
 import io
-import os
 import random
 import re
 import time
 
 import pptx_ea_font
-from dotenv import load_dotenv
 from pptx.dml.color import RGBColor
 from pptx.enum.dml import MSO_COLOR_TYPE
 from pptx.enum.shapes import MSO_SHAPE_TYPE
 from pptx.enum.text import MSO_AUTO_SIZE
 from pptx.util import Pt
 
+from shared.config import settings
 from shared.logging import get_logger
 from shared.llm.llm import LLM
 
-load_dotenv()
-
-# ログ設定
 logger = get_logger("ppt_utils")
 
 
 class LLMInvoker:
     def __init__(self, deployment_name: str | None = None, temperature: float | None = None, json_mode: bool = False):
-        default_dep = os.getenv("DEFAULT_LLM_DEPLOYMENT", "gpt-5")
-        default_temp = float(os.getenv("DEFAULT_LLM_TEMPERATURE", "0.3"))
-
-        self.deployment = deployment_name or default_dep
+        self.deployment = deployment_name or settings.default_llm_deployment
+        default_temp = settings.default_llm_temperature
         self.temperature = default_temp if temperature is None else float(temperature)
 
         self.llm = LLM(
@@ -39,14 +33,12 @@ class LLMInvoker:
         )
 
     def invoke(self, prompt_template: str, **kwargs) -> str:
-        """
-        テンプレート文字列を format(**kwargs) して LLM を叩き、文字列を返す。
-        """
+        """Format the template, invoke the LLM, and return the response text."""
         try:
             prompt_text = prompt_template.format(**kwargs)
         except KeyError as e:
             logger.error({
-                "message": "プロンプトテンプレートに必要な引数が不足しています。",
+                "message": "Missing argument required by prompt template",
                 "missing_argument": str(e),
                 "status": "problem",
             })
@@ -54,7 +46,7 @@ class LLMInvoker:
 
         try:
             logger.info({
-                "message": "LLM呼び出し開始",
+                "message": "Starting LLM invocation",
                 "operation": "ppt_llm_invoke",
                 "deployment": self.deployment,
                 "temperature": self.temperature,
@@ -84,17 +76,17 @@ class LLMInvoker:
                 "execution_time": execution_time,
             }
             logger.info({
-                "message": "LLMトークン使用量",
+                "message": "LLM token usage",
                 "operation": "llm_invoke_usage",
                 "tokens": token_log,
             })
 
             content = getattr(answer, "content", answer)
             if not isinstance(content, str):
-                raise TypeError("応答が文字列ではありません。")
+                raise TypeError("LLM response is not a string.")
 
             logger.info({
-                "message": "LLM呼び出し完了",
+                "message": "LLM invocation completed",
                 "operation": "ppt_llm_invoke",
                 "status": "completed",
             })
@@ -102,7 +94,7 @@ class LLMInvoker:
 
         except Exception as e:
             logger.error({
-                "message": "LLMの呼び出し中にエラーが発生しました。",
+                "message": "LLM invocation failed",
                 "operation": "ppt_llm_invoke",
                 "error_message": str(e),
                 "status": "problem",
@@ -111,24 +103,18 @@ class LLMInvoker:
 
 
 class PPTUtils:
-    """
-    PowerPoint操作に関するユーティリティクラス。
-    """
+    """Utility helpers for manipulating PowerPoint presentations."""
 
     @staticmethod
     def duplicate_slide(index, presentation):
-        """
-        指定されたインデックスのスライドを複製する。
-        """
+        """Duplicate the slide at the given index and return the new slide."""
         try:
             template_slide = presentation.slides[index]
             copied_slide = presentation.slides.add_slide(template_slide.slide_layout)
 
-            # 新しいスライドをクリア
             for shape in list(copied_slide.shapes):
                 copied_slide.shapes.element.remove(shape.element)
 
-            # 元スライドの全てのシェイプを複製
             for shape in template_slide.shapes:
                 if shape.shape_type == MSO_SHAPE_TYPE.PICTURE:
                     img = io.BytesIO(shape.image.blob)
@@ -141,24 +127,20 @@ class PPTUtils:
                     )
                 else:
                     new_element = copy.deepcopy(shape.element)
-                    copied_slide.shapes._spTree.insert_element_before(
-                        new_element, "p:extLst"
-                    )
+                    copied_slide.shapes._spTree.insert_element_before(new_element, "p:extLst")
 
             return copied_slide
 
         except Exception as e:
             logger.error({
-                "message": f"スライド {index} の複製中にエラーが発生しました。",
+                "message": f"Failed to duplicate slide {index}",
                 "error_message": str(e)
             })
             raise
 
     @staticmethod
     def remove_original_slides(presentation, original_slide_count):
-        """
-        指定された数の元スライドをプレゼンテーションから削除する。
-        """
+        """Remove the specified number of slides from the start of the deck."""
         try:
             xml_slides = presentation.slides._sldIdLst
             slide_ids = list(xml_slides)[:original_slide_count]
@@ -166,23 +148,19 @@ class PPTUtils:
                 xml_slides.remove(slide_id)
         except Exception as e:
             logger.error({
-                "message": "元スライドの削除中にエラーが発生しました。",
+                "message": "Failed to remove original slides",
                 "error_message": str(e)
             })
             raise
 
     @staticmethod
     def add_text_to_shape(shape, text, hyperlink=None):
-        """
-        シェイプにテキストを追加し、フォントスタイルを継承しながらハイパーリンクを追加する。
-        """
+        """Add text to a shape, preserving font styling and optional hyperlink."""
         try:
             text_frame = shape.text_frame
-            
-            # <br>タグを実際の改行に置換する
+
             text = text.replace('<br>', '\n')
 
-            # 既存のフォント情報を取得する
             if text_frame.paragraphs and text_frame.paragraphs[0].runs:
                 first_run = text_frame.paragraphs[0].runs[0]
                 font = first_run.font
@@ -190,18 +168,14 @@ class PPTUtils:
                 font_size = font.size
                 font_bold = font.bold
                 font_italic = font.italic
-                font_color = (
-                    font.color.rgb if font.color.type == MSO_COLOR_TYPE.RGB else None
-                )
+                font_color = font.color.rgb if font.color.type == MSO_COLOR_TYPE.RGB else None
             else:
-                # デフォルトのフォント設定
                 font_name = "Meiryo UI"
                 font_size = Pt(18)
                 font_bold = False
                 font_italic = False
                 font_color = RGBColor(0, 0, 0)
 
-            # テキストをクリアし、新しいテキストを設定する
             text_frame.clear()
             text_frame.auto_size = MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE
             paragraph = text_frame.paragraphs[0]
@@ -213,42 +187,36 @@ class PPTUtils:
             run.font.italic = font_italic
             if font_color:
                 run.font.color.rgb = font_color
-            pptx_ea_font.set_font(run, 'Meiryo UI')
+            pptx_ea_font.set_font(run, "Meiryo UI")
             run.font.name = font_name
 
-            # ハイパーリンクを追加（オプション）
             if hyperlink:
                 run.hyperlink.address = hyperlink
                 run.font.color.rgb = RGBColor(0, 0, 255)
                 run.font.underline = True
-                
+
         except Exception as e:
             logger.error({
-                "message": "シェイプにテキストを追加中にエラーが発生しました。",
+                "message": "Failed to add text to shape",
                 "error_message": str(e)
             })
             raise
 
-
     @staticmethod
     def add_picture_to_slide(placeholder, chart):
-        """
-        指定されたスライドに画像を挿入する。
-        """
+        """Insert an image into the placeholder on the slide."""
         try:
             placeholder.insert_picture(chart)
         except Exception as e:
             logger.error({
-                "message": "スライドへの画像挿入中にエラーが発生しました。",
+                "message": "Failed to insert image into slide",
                 "error_message": str(e)
             })
             raise
 
     @staticmethod
     def extract_all_between_tags(tag, text):
-        """
-        指定されたタグに囲まれたテキストを全て抽出する。
-        """
+        """Extract every occurrence of the content enclosed by the given tag."""
         try:
             start_tag = f"[{tag}]"
             end_tag = f"[/{tag}]"
@@ -257,7 +225,7 @@ class PPTUtils:
             return results
         except Exception as e:
             logger.error({
-                "message": f"タグ '{tag}' の抽出中にエラーが発生しました。",
+                "message": f"Failed to extract tag '{tag}'",
                 "error_message": str(e)
             })
             raise
@@ -269,15 +237,13 @@ class OtherUtils:
 
     @staticmethod
     def random_choice(template_info_group):
-        """
-        テンプレート情報のグループからランダムに選択する。
-        """
+        """Select a template variant while limiting repeated choices."""
         try:
             if (
                 len(OtherUtils._previous_templates) >= 2
                 and OtherUtils._previous_templates[-1] == OtherUtils._previous_templates[-2]
             ):
-                # 直近の重複を避ける
+                # Avoid picking the same variant repeatedly
                 variant_key = [x for x in template_info_group if x != OtherUtils._previous_templates[-1]][0]
             else:
                 variant_key = random.choice(template_info_group)
@@ -290,7 +256,7 @@ class OtherUtils:
 
         except Exception as e:
             logger.error({
-                "message": "ランダム選択機能にエラーが発生しました。",
+                "message": "Failed to pick random template",
                 "error_message": str(e)
             })
             raise

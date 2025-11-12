@@ -4,8 +4,6 @@ import sys
 import traceback
 from logging import DEBUG, INFO, Formatter, LogRecord, StreamHandler, getLogger
 
-from dotenv import load_dotenv
-
 try:
     from azure.monitor.opentelemetry.exporter import AzureMonitorLogExporter
     from opentelemetry._logs import set_logger_provider
@@ -17,9 +15,6 @@ except ImportError:  # pragma: no cover - optional dependency
     LoggingHandler = None  # type: ignore[assignment]
     BatchLogRecordProcessor = None  # type: ignore[assignment]
     set_logger_provider = None  # type: ignore[assignment]
-
-load_dotenv()
-
 
 class JSONFormatter(Formatter):
     def format(self, record: LogRecord) -> str:

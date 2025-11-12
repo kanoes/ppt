@@ -1,8 +1,8 @@
 """PostgreSQL metadata helpers shared across both generators."""
 
-import os
 from typing import Any, Dict, Optional
 
+from shared.config import settings
 from shared.logging import get_logger
 from shared.db.db import get_pg_pool
 
@@ -15,7 +15,7 @@ async def get_ppt_metadata(user_id: str, thread_id: str, app_id: Optional[str] =
         return None
     
     if app_id is None:
-        app_id = os.getenv("APP_ID", "ppt-automate")
+        app_id = settings.app_id
     
     try:
         row = await pool.fetchrow(
@@ -79,7 +79,7 @@ async def save_ppt_metadata(
         return False
     
     if app_id is None:
-        app_id = os.getenv("APP_ID", "ppt-automate")
+        app_id = settings.app_id
     
     try:
         existing = await pool.fetchrow(
