@@ -164,10 +164,13 @@ async def download_file(
 
     candidate_paths = []
     ppt_base = Path(settings.ppt_shared_directory or ".").resolve()
-    html_base = Path(settings.generated_files_dir).resolve()
+    if settings.generated_files_dir:
+        html_base = Path(settings.generated_files_dir).resolve()
+        user_hash = generate_user_hash(user_name)
+        html_full_path = html_base / user_hash / file_id
+        candidate_paths.append(html_full_path)
 
     candidate_paths.append(ppt_base / file_id)
-    candidate_paths.append(html_base / file_id)
 
     file_path = next((path for path in candidate_paths if path.is_file()), None)
 
@@ -175,6 +178,7 @@ async def download_file(
         logger.error({
             "message": "File not found",
             "file_id": file_id,
+            "user_name": user_name,
             "status": "not_found"
         })
         raise HTTPException(status_code=404, detail="File not found")
