@@ -27,7 +27,7 @@ COPY ppt ./ppt
 COPY app.py ./
 
 # アプリケーションのポートを公開
-EXPOSE 5056
+EXPOSE 12001
 
 # コンテナ起動時のコマンドを指定
-CMD ["gunicorn", "-k", "uvicorn.workers.UvicornWorker", "app:app", "--bind=0.0.0.0:5056", "--timeout", "0"]
+CMD ["gunicorn", "-k", "uvicorn.workers.UvicornWorker", "app:app", "--bind=0.0.0.0:12001", "--timeout", "0"]

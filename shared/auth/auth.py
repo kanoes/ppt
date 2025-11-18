@@ -15,7 +15,7 @@ logger = get_logger("auth")
 
 async def verify_session_token(
     session_token: str | None, required_service: str = "ppt"
-) -> tuple[bool, str, dict | None, str]:
+) -> tuple[bool, str, dict | None, list[str]]:
     core_auth_root_url = settings.coreauth_root_url
     core_auth_app_id = settings.coreauth_app_id
     core_auth_app_secret = settings.coreauth_app_secret
@@ -27,7 +27,7 @@ async def verify_session_token(
                 "message": "Core-Auth configuration not complete"
             }
         })
-        return False, "configurationError", None, ""
+        return False, "configurationError", None, []
 
     try:
         credentials = f"{core_auth_app_id}:{core_auth_app_secret}"
@@ -35,18 +35,20 @@ async def verify_session_token(
             "Authorization": f"Basic {b64encode(credentials.encode('utf-8')).decode('utf-8')}",
             "Content-Type": "application/json"
         }
-        payload = {"sessionToken": session_token}
+        payload = {
+            "sessionToken": session_token,
+            "requiredSubApp": required_service
+        }
 
         async with ClientSession(core_auth_root_url) as session:
             async with session.post(
-                "/auth-bot/verify-session", json=payload, headers=headers
+                "/auth-bot/verify-sub-session", json=payload, headers=headers
             ) as auth_response:
                 auth_response.raise_for_status()
                 auth_data = await auth_response.json()
                 
                 auth_status = auth_data.get("status", "failed")
                 user_properties = auth_data.get("properties", None)
-                valid_for = auth_data.get("validFor", "")
 
                 if auth_status != "active":
                     logger.warning({
@@ -55,31 +57,17 @@ async def verify_session_token(
                             "authStatus": auth_status
                         }
                     })
-                    return False, auth_status, None, ""
-
-                valid_for_list = [s.strip() for s in valid_for.split(",") if s.strip()]
-                
-                if required_service and required_service not in valid_for_list:
-                    logger.warning({
-                        "auth": {
-                            "status": "Service Not Authorized",
-                            "requiredService": required_service,
-                            "validFor": valid_for,
-                            "displayName": auth_data.get("displayName", "Unknown")
-                        }
-                    })
-                    return False, "serviceNotAuthorized", None, valid_for
+                    return False, auth_status, None, []
 
                 logger.info({
                     "auth": {
                         "status": "Session Verified",
                         "displayName": auth_data.get("displayName", "Unknown"),
-                        "validFor": valid_for,
                         "service": required_service
                     }
                 })
                 
-                return True, auth_status, user_properties, valid_for
+                return True, auth_status, user_properties
 
     except Exception as e:
         logger.error({
@@ -89,7 +77,7 @@ async def verify_session_token(
                 "trace": traceback.format_exc()
             }
         })
-        return False, "tokenValidationFailed", None, ""
+        return False, "tokenValidationFailed", None, []
 
 
 async def get_current_user(
@@ -108,12 +96,12 @@ async def get_current_user(
             detail="Authentication required: No session token provided"
         )
 
-    is_valid, status, user_properties, valid_for = await verify_session_token(
+    is_valid, status, user_properties = await verify_session_token(
         market_session_token, required_service="ppt"
     )
 
     if not is_valid:
-        if status == "serviceNotAuthorized":
+        if status == "subAppNotAuthorized":
             raise HTTPException(
                 status_code=403,
                 detail="Access denied: Token not valid for PPT service"

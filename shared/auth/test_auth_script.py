@@ -14,9 +14,9 @@ if not os.environ.get("RUN_INTEGRATION_TESTS"):
 
 BASE_URL = os.environ.get("APP_BASE_URL", "http://localhost:8000")
 
-VALID_TOKEN = "UlWGx9EYLK6AtJCZ1LVRTMwK5PCQuisBl3%2BxgTVowyoBQ3gJtMg0fVpsMgmb9XCixgp2446wvuWH%2FdtKiTn4%2Baj7Q7NpSuhDzOQGfQfzhesvwJF1YqBSq3UQM9nGB5w8KnekyHcgTnIb26wlAlJk6w5gQE%2FSxGArNmBrFbSGNEg%3D"
+VALID_TOKEN = "RgGLIRNOK5eFljj86%2FGsHWobnB5PJ%2F8t1nTw8I0BwBqe5G9DCmpXVqE1n6MTxdUrlIBgRBQjHiXAJ%2BXLJatrQ5xoTUZaOVu1BNgd0GOQd2nWiVBTd5TXtTQ1v6aTNkPE0q3%2FGfNH4ih2apyItWZOcCFg9RPEtroTDMiZi5Lri%2FI%3D"
 
-INVALID_TOKEN = "Yrw%2FAQeno0NUzw3x%2Fvs%2FgPMf%2BBeyg5embicTLOvPnvMyYRCzhxKenYw4p9MwWJeMTtrcxz3CpEzmurMbl904dCYRoQeWczdVA1najVXHIK%2BGvuRNHYvgFpuiYmzFtoFueTY%2F9alHOn2MVQ5%2B%2BEDbTvBD82JCXY28x4PWREjNHdU%3D"
+INVALID_TOKEN = "xFO9JpHAJUiSySE7ahRGjyVJfbbd1CqTENmG20LMFn2GjBaHs%2FJdGmsCEwrgXj8esWS0ysN52IzRfy237TlKyJ6Od9Y6zUNMB4OI6iIYPS6S31vXNNfrv5alQSSwnGYbPREg%2FEiQudOv0QZKVcGPlQQI9faUdqCC6PSmZ4hbBHI%3D"
 
 TEST_PAYLOAD = {
     "userName": "テスター／ローカル／SMBC (Tester)／1234567890ABCDEF",
@@ -41,7 +41,7 @@ def test_with_valid_token():
     
     cookies = {"MarketSessionToken": VALID_TOKEN}
     response = requests.post(
-        f"{BASE_URL}/api/v2/generate",
+        f"{BASE_URL}/ppt-automate/generate",
         json=TEST_PAYLOAD,
         cookies=cookies
     )
@@ -59,12 +59,12 @@ def test_with_valid_token():
 
 def test_with_invalid_token():
     print("\n" + "="*80)
-    print("TEST 2: Invalid Token (validFor='')")
+    print("TEST 2: Invalid Token (no validFor field)")
     print("="*80)
     
     cookies = {"MarketSessionToken": INVALID_TOKEN}
     response = requests.post(
-        f"{BASE_URL}/api/v2/generate",
+        f"{BASE_URL}/ppt-automate/generate",
         json=TEST_PAYLOAD,
         cookies=cookies
     )
@@ -72,10 +72,10 @@ def test_with_invalid_token():
     print(f"Status Code: {response.status_code}")
     print(f"Response: {response.text}")
     
-    if response.status_code == 403:
-        print("✅ PASSED: Correctly rejected token without 'ppt' in validFor")
+    if response.status_code == 401:
+        print("✅ PASSED: Correctly rejected token without 'ppt' authorization")
     else:
-        print("❌ FAILED: Should return 403 for invalid validFor")
+        print("❌ FAILED: Should return 401 for token without ppt authorization")
 
 
 def test_without_token():
@@ -84,7 +84,7 @@ def test_without_token():
     print("="*80)
     
     response = requests.post(
-        f"{BASE_URL}/api/v2/generate",
+        f"{BASE_URL}/ppt-automate/generate",
         json=TEST_PAYLOAD
     )
     
@@ -106,7 +106,7 @@ def test_status_endpoint(task_id):
         print("⏭️  SKIPPED: No task_id from previous test")
         return
     
-    response = requests.get(f"{BASE_URL}/api/v2/status/{task_id}")
+    response = requests.get(f"{BASE_URL}/ppt-automate/status/{task_id}")
     
     print(f"Status Code: {response.status_code}")
     print(f"Response: {json.dumps(response.json(), indent=2, ensure_ascii=False)}")
@@ -129,7 +129,7 @@ def test_metadata_with_auth():
     }
     
     response = requests.get(
-        f"{BASE_URL}/api/v2/metadata",
+        f"{BASE_URL}/ppt-automate/metadata",
         params=params,
         cookies=cookies
     )
@@ -153,7 +153,7 @@ def test_metadata_without_auth():
         "threadId": TEST_PAYLOAD["threadId"]
     }
     
-    response = requests.get(f"{BASE_URL}/api/v2/metadata", params=params)
+    response = requests.get(f"{BASE_URL}/ppt-automate/metadata", params=params)
     
     print(f"Status Code: {response.status_code}")
     print(f"Response: {response.text}")

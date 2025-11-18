@@ -42,7 +42,7 @@ app.add_middleware(
 def include_routers():
     from shared.api import routes_async
 
-    app.include_router(routes_async.router, prefix="/api/v2", tags=["async"])
+    app.include_router(routes_async.router, prefix="/ppt-automate", tags=["async"])
 
 
 include_routers()
